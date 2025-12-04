@@ -316,6 +316,7 @@ Contributions welcome! Priority areas:
 - Additional IPFS gateways
 - Torrent creation tools
 - Performance optimizations
+
 - Better error handling
 
 ## 📝 License
