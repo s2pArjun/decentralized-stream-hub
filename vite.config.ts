@@ -13,14 +13,21 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Node.js polyfills for WebTorrent
+      events: "events",
+      path: "path-browserify",
+      stream: "stream-browserify",
+      crypto: "crypto-browserify",
     },
   },
   define: {
     global: "globalThis",
-    "process.env": JSON.stringify({}),
+    "process.env": {},
+    "process.browser": true,
+    "process.version": JSON.stringify(""),
   },
   optimizeDeps: {
-    include: ["buffer", "gun"],
+    include: ["buffer", "events", "gun", "webtorrent"],
     esbuildOptions: {
       define: {
         global: "globalThis",
@@ -28,10 +35,14 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
     rollupOptions: {
       output: {
         manualChunks: {
           gun: ["gun"],
+          webtorrent: ["webtorrent"],
         },
       },
     },

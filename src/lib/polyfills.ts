@@ -1,15 +1,17 @@
 import { Buffer } from 'buffer';
+import { EventEmitter } from 'events';
 
 // Polyfills for WebTorrent browser compatibility
 if (typeof window !== 'undefined') {
-  // @ts-ignore
-  window.Buffer = Buffer;
-  // @ts-ignore
-  window.global = window;
-  // @ts-ignore
-  if (!window.process) {
-    // @ts-ignore
-    window.process = { env: {}, nextTick: (fn: Function) => setTimeout(fn, 0) };
+  (window as any).Buffer = Buffer;
+  (window as any).global = window;
+  (window as any).EventEmitter = EventEmitter;
+  
+  if (!(window as any).process) {
+    (window as any).process = { 
+      env: {}, 
+      nextTick: (fn: (...args: any[]) => void, ...args: any[]) => setTimeout(() => fn(...args), 0)
+    };
   }
 }
 
