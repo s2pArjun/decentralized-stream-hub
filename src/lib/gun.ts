@@ -1,10 +1,22 @@
 import Gun from 'gun';
 import { MediaItem } from './types';
 
-const RELAY_PEERS = [
+// Default relay peers (fallback if env var not set)
+const DEFAULT_RELAY_PEERS = [
   'https://gun-manhattan.herokuapp.com/gun',
   'https://gun-us.herokuapp.com/gun',
 ];
+
+// Parse relay peers from environment variable (comma-separated)
+const parseRelayPeers = (): string[] => {
+  const envPeers = import.meta.env.VITE_GUN_RELAY_PEERS;
+  if (envPeers && typeof envPeers === 'string') {
+    return envPeers.split(',').map(peer => peer.trim()).filter(Boolean);
+  }
+  return DEFAULT_RELAY_PEERS;
+};
+
+const RELAY_PEERS = parseRelayPeers();
 
 // Initialize Gun with relay peers
 export const gun = Gun({
@@ -12,8 +24,13 @@ export const gun = Gun({
   localStorage: true,
 });
 
-const CATALOG_KEY = 'p2p-media-catalog-v1';
-export const catalogRef = gun.get(CATALOG_KEY);
+// Catalog namespace (can be customized via env var)
+const CATALOG_KEY: string = import.meta.env.VITE_GUN_NAMESPACE || 'p2p-media-catalog-v1';
+export const catalogRef = gun.get(CATALOG_KEY as any);
+
+// Export for debugging/status display
+export const getRelayPeers = () => RELAY_PEERS;
+export const getCatalogKey = () => CATALOG_KEY;
 
 export const addToCatalog = (item: MediaItem): Promise<void> => {
   return new Promise((resolve, reject) => {
@@ -22,7 +39,7 @@ export const addToCatalog = (item: MediaItem): Promise<void> => {
         throw new Error('Missing required fields');
       }
 
-      catalogRef.get(item.id).put({
+      (catalogRef.get(item.id as any) as any).put({
         id: item.id,
         title: item.title,
         description: item.description || '',
@@ -49,7 +66,7 @@ export const addToCatalog = (item: MediaItem): Promise<void> => {
 export const removeFromCatalog = (id: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     try {
-      catalogRef.get(id).put({ deleted: true, deletedAt: Date.now() }, (ack: any) => {
+      (catalogRef.get(id as any) as any).put({ deleted: true, deletedAt: Date.now() }, (ack: any) => {
         if (ack.err) {
           reject(new Error(ack.err));
         } else {
@@ -80,7 +97,7 @@ export const subscribeToCatalog = (
   const items: Record<string, MediaItem> = {};
   let unsubscribed = false;
 
-  const handler = catalogRef.map().on((data: any, id: string) => {
+  const handler = (catalogRef.map() as any).on((data: any, id: string) => {
     if (unsubscribed) return;
 
     try {
