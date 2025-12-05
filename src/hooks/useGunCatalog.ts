@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { subscribeToCatalog, addToCatalog, removeFromCatalog } from '@/lib/gun';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { subscribeToCatalog, addToCatalog, removeFromCatalog, addSampleContent } from '@/lib/gun';
 import { MediaItem } from '@/lib/types';
 
 export const useGunCatalog = () => {
@@ -7,6 +7,8 @@ export const useGunCatalog = () => {
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const samplesAddedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -30,10 +32,21 @@ export const useGunCatalog = () => {
       }
     }, 5000);
 
+    // Add sample content if catalog is empty after 3 seconds
+    const sampleTimeout = setTimeout(() => {
+      if (mounted && !samplesAddedRef.current) {
+        samplesAddedRef.current = true;
+        addSampleContent().catch(err => 
+          console.error('Failed to add sample content:', err)
+        );
+      }
+    }, 3000);
+
     return () => {
       mounted = false;
       unsubscribe();
       clearTimeout(timeout);
+      clearTimeout(sampleTimeout);
     };
   }, []);
 
