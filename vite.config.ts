@@ -18,6 +18,8 @@ export default defineConfig(({ mode }) => ({
       path: "path-browserify",
       stream: "stream-browserify",
       crypto: "crypto-browserify",
+      // Stub Node.js-only modules
+      "bittorrent-dht": path.resolve(__dirname, "./src/lib/browser-stubs.ts"),
     },
   },
   define: {
