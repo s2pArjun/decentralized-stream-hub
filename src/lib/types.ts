@@ -13,6 +13,9 @@ export interface MediaItem {
   deletedAt?: number;
   tags?: string[];
   category?: string;
+    /** Optional fallback HTTP streaming URL */
+  fallbackURL?: string;   // ← ADD THIS
+  
 }
 
 export interface StreamStats {

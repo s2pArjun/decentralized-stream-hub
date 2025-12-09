@@ -5,7 +5,7 @@ import { getIPFSUrl } from '@/lib/ipfs';
 import { MediaItem } from '@/lib/types';
 import { StreamStats } from './StreamStats';
 import { PlayerSkeleton } from '../common/LoadingSkeleton';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 interface VideoPlayerProps {
   item: MediaItem;
@@ -13,31 +13,48 @@ interface VideoPlayerProps {
 
 export const VideoPlayer = ({ item }: VideoPlayerProps) => {
   const { videoURL, loading, error, stats } = useWebTorrent(item.magnetURI);
-  const [source, setSource] = useState<'webtorrent' | 'ipfs' | null>(null);
+  const [source, setSource] = useState<'webtorrent' | 'ipfs' | 'http' | null>(null);
   const [finalURL, setFinalURL] = useState<string | null>(null);
   const [showStats, setShowStats] = useState(true);
   const [ipfsFallback, setIpfsFallback] = useState(false);
+  const [ipfsError, setIpfsError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    console.log('🎬 VideoPlayer:', item.title);
+    console.log('📎 Magnet:', item.magnetURI?.substring(0, 80) + '...');
+    
     if (videoURL) {
+      console.log('✅ WebTorrent stream ready');
       setSource('webtorrent');
       setFinalURL(videoURL);
       return;
     }
 
-    // Fallback to IPFS after 8 seconds or on error
+    // Fallback to IPFS after 15 seconds or on error
     if ((!loading && !videoURL) || error) {
       const timeout = setTimeout(() => {
+        console.log('⏱️ WebTorrent timeout, falling back to IPFS');
         const ipfsURL = getIPFSUrl(item.ipfsCID);
+        console.log('🌐 IPFS URL:', ipfsURL);
         setSource('ipfs');
         setFinalURL(ipfsURL);
         setIpfsFallback(true);
-      }, error ? 0 : 8000);
+      }, error ? 0 : 15000);
 
       return () => clearTimeout(timeout);
     }
-  }, [videoURL, loading, error, item.ipfsCID]);
+  }, [videoURL, loading, error, item.ipfsCID, item.title, item.magnetURI]);
+
+  // Handle IPFS failure - fallback to direct HTTP URL
+  const handleVideoError = () => {
+    if (source === 'ipfs' && item.fallbackURL && !ipfsError) {
+      console.log('IPFS failed, falling back to HTTP:', item.fallbackURL);
+      setIpfsError(true);
+      setSource('http');
+      setFinalURL(item.fallbackURL);
+    }
+  };
 
   if (!finalURL && loading) {
     return (
@@ -85,6 +102,7 @@ export const VideoPlayer = ({ item }: VideoPlayerProps) => {
         className="w-full h-full object-contain"
         onPlay={() => setShowStats(false)}
         onPause={() => setShowStats(true)}
+        onError={handleVideoError}
       />
 
       {/* Stats overlay */}
@@ -95,9 +113,11 @@ export const VideoPlayer = ({ item }: VideoPlayerProps) => {
         <div className={`px-3 py-1 rounded-full text-xs font-medium ${
           source === 'webtorrent' 
             ? 'bg-status-success/20 text-status-success' 
+            : source === 'http'
+            ? 'bg-primary/20 text-primary'
             : 'bg-status-warning/20 text-status-warning'
         }`}>
-          {source === 'webtorrent' ? '⚡ P2P Stream' : '🌐 IPFS Gateway'}
+          {source === 'webtorrent' ? '⚡ P2P Stream' : source === 'http' ? '📡 Direct Stream' : '🌐 IPFS Gateway'}
         </div>
       </div>
     </motion.div>

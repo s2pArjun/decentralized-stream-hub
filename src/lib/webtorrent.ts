@@ -5,6 +5,7 @@ const TRACKERS = [
   'wss://tracker.btorrent.xyz',
   'wss://tracker.openwebtorrent.com',
   'wss://tracker.webtorrent.dev',
+    'wss://tracker.fastcast.nz',
 ];
 
 let client: any = null;

@@ -25,47 +25,69 @@ export const useWebTorrent = (magnetURI: string | null) => {
 
     const initTorrent = async () => {
       try {
+        console.log('🔧 Initializing WebTorrent client...');
         const { getWebTorrentClient } = await import('@/lib/webtorrent');
         const client = await getWebTorrentClient();
+        console.log('✅ WebTorrent client ready');
 
         if (cancelled) return;
 
         // Check if torrent already exists
         const existingTorrent = client.torrents?.find((t: any) => t.magnetURI === magnetURI);
         if (existingTorrent) {
+          console.log('♻️ Reusing existing torrent');
           torrentRef = existingTorrent;
         } else {
+          console.log('➕ Adding new torrent:', magnetURI?.substring(0, 60) + '...');
           torrentRef = client.add(magnetURI);
         }
 
         torrentRef.on('error', (err: Error) => {
           if (cancelled) return;
-          console.error('Torrent error:', err);
+          console.error('❌ Torrent error:', err);
           setError(err.message);
           setLoading(false);
         });
 
+        torrentRef.on('infoHash', () => {
+          console.log('🔑 Got infoHash:', torrentRef.infoHash);
+        });
+
+        torrentRef.on('metadata', () => {
+          console.log('📋 Got metadata, files:', torrentRef.files?.length);
+        });
+
+        torrentRef.on('wire', () => {
+          console.log('👥 Peer connected! Total peers:', torrentRef.numPeers);
+        });
+
         torrentRef.on('ready', () => {
           if (cancelled) return;
+          console.log('✅ Torrent ready! Peers:', torrentRef.numPeers);
 
           const videoFile = torrentRef.files
             .filter((file: any) => file.name.match(/\.(mp4|webm|mkv|avi|mov)$/i))
             .sort((a: any, b: any) => b.length - a.length)[0];
 
           if (!videoFile) {
+            console.error('❌ No video file found in torrent');
             setError('No video file found in torrent');
             setLoading(false);
             return;
           }
 
+          console.log('🎥 Video file found:', videoFile.name, '(' + Math.round(videoFile.length / 1024 / 1024) + 'MB)');
+
           videoFile.getBlobURL((err: Error | null, url: string | undefined) => {
             if (cancelled) return;
             if (err) {
+              console.error('❌ Failed to create blob URL:', err);
               setError('Failed to create video URL');
               setLoading(false);
               return;
             }
 
+            console.log('🎉 Blob URL created successfully');
             setVideoURL(url || null);
             setLoading(false);
           });

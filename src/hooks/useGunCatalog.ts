@@ -32,21 +32,21 @@ export const useGunCatalog = () => {
       }
     }, 5000);
 
-    // Add sample content if catalog is empty after 3 seconds
-    const sampleTimeout = setTimeout(() => {
-      if (mounted && !samplesAddedRef.current) {
-        samplesAddedRef.current = true;
-        addSampleContent().catch(err => 
-          console.error('Failed to add sample content:', err)
-        );
-      }
-    }, 3000);
+    // DISABLED: Auto sample content - enable manually via admin panel
+    // const sampleTimeout = setTimeout(() => {
+    //   if (mounted && !samplesAddedRef.current) {
+    //     samplesAddedRef.current = true;
+    //     addSampleContent().catch(err => 
+    //       console.error('Failed to add sample content:', err)
+    //     );
+    //   }
+    // }, 3000);
 
     return () => {
       mounted = false;
       unsubscribe();
       clearTimeout(timeout);
-      clearTimeout(sampleTimeout);
+      // clearTimeout(sampleTimeout);
     };
   }, []);
 
