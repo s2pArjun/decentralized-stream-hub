@@ -5,7 +5,7 @@ import { getIPFSUrl } from '@/lib/ipfs';
 import { MediaItem } from '@/lib/types';
 import { StreamStats } from './StreamStats';
 import { PlayerSkeleton } from '../common/LoadingSkeleton';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Users } from 'lucide-react';
 
 interface VideoPlayerProps {
   item: MediaItem;
@@ -108,16 +108,21 @@ export const VideoPlayer = ({ item }: VideoPlayerProps) => {
       {/* Stats overlay */}
       {showStats && <StreamStats stats={stats} source={source} />}
 
-      {/* Source indicator */}
-      <div className="absolute bottom-20 left-4 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+      {/* BOTTOM PEER COUNT - Always visible */}
+      <div className="absolute bottom-20 left-4 right-4 flex items-center justify-between pointer-events-none">
+        <div className={`px-4 py-2 rounded-full text-sm font-medium backdrop-blur-xl ${
           source === 'webtorrent' 
-            ? 'bg-status-success/20 text-status-success' 
+            ? 'bg-status-success/20 text-status-success border border-status-success/30' 
             : source === 'http'
-            ? 'bg-primary/20 text-primary'
-            : 'bg-status-warning/20 text-status-warning'
+            ? 'bg-primary/20 text-primary border border-primary/30'
+            : 'bg-status-warning/20 text-status-warning border border-status-warning/30'
         }`}>
-          {source === 'webtorrent' ? '⚡ P2P Stream' : source === 'http' ? '📡 Direct Stream' : '🌐 IPFS Gateway'}
+          {source === 'webtorrent' ? '⚡ P2P Stream' : source === 'http' ? '📡 Direct' : '🌐 IPFS'}
+        </div>
+        
+        <div className="px-4 py-2 rounded-full bg-background/50 backdrop-blur-xl text-foreground text-sm font-medium flex items-center gap-2 border border-border/30">
+          <Users className="w-4 h-4" />
+          <span>{stats.peers} {stats.peers === 1 ? 'Peer' : 'Peers'}</span>
         </div>
       </div>
     </motion.div>

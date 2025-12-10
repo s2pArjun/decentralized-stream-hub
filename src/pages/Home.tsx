@@ -5,10 +5,20 @@ import { FeaturedHero } from '@/components/catalog/FeaturedHero';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { Layout } from '@/components/layout/Layout';
 import { Sparkles, Zap, Globe, Shield } from 'lucide-react';
+import { addSampleContent } from '@/lib/gun';
 
 const Home = () => {
   const { catalog, loading, connected } = useGunCatalog();
   const featuredItem = catalog[0];
+    const handleAddSamples = async () => {
+    try {
+      await addSampleContent();
+      toast.success('Sample content added!');
+    } catch (err) {
+      toast.error('Failed to add samples');
+    }
+  };
+
 
   return (
     <Layout connected={connected}>
@@ -85,6 +95,14 @@ const Home = () => {
                   </p>
                 </div>
               </motion.div>
+
+              <motion.button
+  onClick={handleAddSamples}
+  whileHover={{ scale: 1.05 }}
+  className="mt-4 px-6 py-3 bg-muted rounded-lg hover:bg-muted/80"
+>
+  Restore Sample Videos
+</motion.button>
 
               <motion.a
                 href="/admin"
