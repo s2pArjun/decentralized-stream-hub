@@ -1,0 +1,16 @@
+{
+  "name": "gun-relay-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Gun.js relay server for P2P media platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "gun": "^0.2020.1241"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

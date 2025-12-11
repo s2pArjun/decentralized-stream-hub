@@ -1,0 +1,4 @@
+node_modules/
+radata/
+*.log
+.DS_Store
