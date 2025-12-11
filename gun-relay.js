@@ -1,18 +1,89 @@
 import Gun from 'gun';
 import http from 'http';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// CORS middleware
+const cors = (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return true;
+  }
+  return false;
+};
 
 const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Gun relay server is running!\n');
+  // Handle CORS
+  if (cors(req, res)) return;
+  
+  // Health check endpoint
+  if (req.url === '/health' || req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      status: 'ok', 
+      service: 'Gun.js Relay Server',
+      timestamp: new Date().toISOString()
+    }));
+    return;
+  }
+  
+  // 404 for other routes
+  res.writeHead(404, { 'Content-Type': 'text/plain' });
+  res.end('Not Found');
 });
 
+// Initialize Gun with the HTTP server
 const gun = Gun({
   web: server,
-  file: 'radata',
-  peers: []
+  file: 'radata', // Persistent storage
+  peers: [], // This is the relay, no other peers needed
+  radisk: true,
+  localStorage: false,
+  axe: false
+});
+
+// Log when peers connect/disconnect
+gun.on('hi', (peer) => {
+  console.log('✅ Peer connected:', peer?.url || 'anonymous');
+});
+
+gun.on('bye', (peer) => {
+  console.log('❌ Peer disconnected:', peer?.url || 'anonymous');
 });
 
 const PORT = process.env.PORT || 8765;
-server.listen(PORT, () => {
-  console.log('🔫 Gun.js relay server running on http://localhost:' + PORT + '/gun');
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log('=================================');
+  console.log('🔫 Gun.js Relay Server Running');
+  console.log(`📡 HTTP: http://0.0.0.0:${PORT}`);
+  console.log(`🌐 Gun endpoint: http://0.0.0.0:${PORT}/gun`);
+  console.log(`💚 Health check: http://0.0.0.0:${PORT}/health`);
+  console.log('=================================');
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('⚠️ SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('⚠️ SIGINT received, shutting down gracefully...');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
 });
