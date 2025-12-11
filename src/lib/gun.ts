@@ -1,9 +1,24 @@
 import Gun from 'gun';
 import { MediaItem } from './types';
 
+
+
+const getRelayURL = () => {
+  const hostname = window.location.hostname;
+  
+  // If accessing via network IP, use that IP for relay too
+  if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    return `http://${hostname}:8765/gun`;
+  }
+  
+  // Otherwise use localhost
+  return 'http://localhost:8765/gun';
+}
+
+
 // Default relay peers (fallback if env var not set)
 const DEFAULT_RELAY_PEERS = [
-  'http://localhost:8765/gun',  // Your local relay!
+  getRelayURL(),
 ];
 
 // Parse relay peers from environment variable (comma-separated)
