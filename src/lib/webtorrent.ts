@@ -1,5 +1,5 @@
-// Simplified WebTorrent client for browser
-// WebTorrent requires special handling in browser environments
+// WebTorrent client for browser - Fixed for Vercel production builds
+import WebTorrent from 'webtorrent';
 
 const TRACKERS = [
   'wss://tracker.btorrent.xyz',
@@ -10,13 +10,14 @@ const TRACKERS = [
   'wss://tracker.openwebtorrent.com:443/announce',
 ];
 
-let client: any = null;
+let client: WebTorrent.Instance | null = null;
 
-export const getWebTorrentClient = async () => {
+export const getWebTorrentClient = async (): Promise<WebTorrent.Instance> => {
   if (!client) {
     try {
-      // Dynamic import to avoid SSR issues
-      const WebTorrent = (await import('webtorrent')).default;
+      console.log('🔧 Initializing WebTorrent client...');
+      
+      // Direct import instead of dynamic import for Vercel compatibility
       client = new WebTorrent({
         tracker: {
           announce: TRACKERS,
@@ -24,10 +25,12 @@ export const getWebTorrentClient = async () => {
       });
 
       client.on('error', (err: Error) => {
-        console.error('WebTorrent error:', err);
+        console.error('❌ WebTorrent client error:', err);
       });
+
+      console.log('✅ WebTorrent client initialized');
     } catch (error) {
-      console.error('Failed to initialize WebTorrent:', error);
+      console.error('❌ Failed to initialize WebTorrent:', error);
       throw error;
     }
   }
@@ -37,11 +40,17 @@ export const getWebTorrentClient = async () => {
 
 export const destroyClient = () => {
   if (client) {
-    client.destroy();
-    client = null;
+    try {
+      client.destroy();
+      client = null;
+      console.log('🧹 WebTorrent client destroyed');
+    } catch (err) {
+      console.error('Error destroying client:', err);
+    }
   }
 };
 
+// Cleanup on page unload
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', destroyClient);
 }

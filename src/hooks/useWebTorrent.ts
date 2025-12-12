@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { StreamStats } from '@/lib/types';
-import { getIPFSUrl } from '@/lib/ipfs';
 
 export const useWebTorrent = (magnetURI: string | null) => {
   const [videoURL, setVideoURL] = useState<string | null>(null);
@@ -26,8 +25,18 @@ export const useWebTorrent = (magnetURI: string | null) => {
     const initTorrent = async () => {
       try {
         console.log('🔧 Initializing WebTorrent client...');
-        const { getWebTorrentClient } = await import('@/lib/webtorrent');
-        const client = await getWebTorrentClient();
+        
+        // Import with error handling
+        const { getWebTorrentClient } = await import('@/lib/webtorrent').catch(err => {
+          console.error('Failed to import WebTorrent module:', err);
+          throw new Error('WebTorrent module failed to load');
+        });
+        
+        const client = await getWebTorrentClient().catch(err => {
+          console.error('Failed to get WebTorrent client:', err);
+          throw new Error('WebTorrent client initialization failed');
+        });
+        
         console.log('✅ WebTorrent client ready');
 
         if (cancelled) return;
@@ -93,6 +102,7 @@ export const useWebTorrent = (magnetURI: string | null) => {
           });
         });
 
+        // Stats update interval
         statsInterval = setInterval(() => {
           if (!torrentRef || cancelled) return;
 
@@ -107,7 +117,7 @@ export const useWebTorrent = (magnetURI: string | null) => {
 
       } catch (err) {
         if (cancelled) return;
-        console.error('WebTorrent init error:', err);
+        console.error('❌ WebTorrent init error:', err);
         setError(err instanceof Error ? err.message : 'Failed to start streaming');
         setLoading(false);
       }

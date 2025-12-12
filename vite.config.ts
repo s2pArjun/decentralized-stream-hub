@@ -37,6 +37,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    target: "es2020", // ADDED: Ensure ES2020 support
     commonjsOptions: {
       transformMixedEsModules: true,
     },
@@ -46,7 +47,16 @@ export default defineConfig(({ mode }) => ({
           gun: ["gun"],
           webtorrent: ["webtorrent"],
         },
+        // ADDED: Handle dynamic imports properly
+        format: "es",
+        inlineDynamicImports: false,
       },
+      // ADDED: Mark problematic modules as external if needed
+      external: [],
     },
+    // ADDED: Don't minify for debugging (can re-enable later)
+    minify: mode === "production" ? "terser" : false,
+    // ADDED: Generate sourcemaps for debugging
+    sourcemap: mode === "development",
   },
 }));
