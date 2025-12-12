@@ -1,56 +1,130 @@
-// WebTorrent client for browser - Fixed for Vercel production builds
-import WebTorrent from 'webtorrent';
+import { useState, useEffect } from 'react';
+import { StreamStats } from '@/lib/types';
+import { getWebTorrentClient } from '@/lib/webtorrent'; // ← STATIC IMPORT
 
-const TRACKERS = [
-  'wss://tracker.btorrent.xyz',
-  'wss://tracker.openwebtorrent.com',
-  'wss://tracker.webtorrent.dev',
-  'wss://tracker.fastcast.nz',
-  'wss://tracker.files.fm:7073/announce',
-  'wss://tracker.openwebtorrent.com:443/announce',
-];
+export const useWebTorrent = (magnetURI: string | null) => {
+  const [videoURL, setVideoURL] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<StreamStats>({
+    peers: 0,
+    downloadSpeed: 0,
+    uploadSpeed: 0,
+    progress: 0,
+    timeRemaining: Infinity,
+  });
 
-let client: WebTorrent.Instance | null = null;
+  useEffect(() => {
+    if (!magnetURI) return;
 
-export const getWebTorrentClient = async (): Promise<WebTorrent.Instance> => {
-  if (!client) {
-    try {
-      console.log('🔧 Initializing WebTorrent client...');
-      
-      // Direct import instead of dynamic import for Vercel compatibility
-      client = new WebTorrent({
-        tracker: {
-          announce: TRACKERS,
-        },
-      });
+    setLoading(true);
+    setError(null);
+    let cancelled = false;
+    let torrentRef: any = null;
+    let statsInterval: NodeJS.Timeout | null = null;
 
-      client.on('error', (err: Error) => {
-        console.error('❌ WebTorrent client error:', err);
-      });
+    const initTorrent = async () => {
+      try {
+        console.log('🔧 Initializing WebTorrent client...');
+        
+        // Use static import - no dynamic import()
+        const client = await getWebTorrentClient();
+        
+        console.log('✅ WebTorrent client ready');
 
-      console.log('✅ WebTorrent client initialized');
-    } catch (error) {
-      console.error('❌ Failed to initialize WebTorrent:', error);
-      throw error;
-    }
-  }
+        if (cancelled) return;
 
-  return client;
+        // Check if torrent already exists
+        const existingTorrent = client.torrents?.find((t: any) => t.magnetURI === magnetURI);
+        if (existingTorrent) {
+          console.log('♻️ Reusing existing torrent');
+          torrentRef = existingTorrent;
+        } else {
+          console.log('➕ Adding new torrent:', magnetURI?.substring(0, 60) + '...');
+          torrentRef = client.add(magnetURI);
+        }
+
+        torrentRef.on('error', (err: Error) => {
+          if (cancelled) return;
+          console.error('❌ Torrent error:', err);
+          setError(err.message);
+          setLoading(false);
+        });
+
+        torrentRef.on('infoHash', () => {
+          console.log('🔑 Got infoHash:', torrentRef.infoHash);
+        });
+
+        torrentRef.on('metadata', () => {
+          console.log('📋 Got metadata, files:', torrentRef.files?.length);
+        });
+
+        torrentRef.on('wire', () => {
+          console.log('👥 Peer connected! Total peers:', torrentRef.numPeers);
+        });
+
+        torrentRef.on('ready', () => {
+          if (cancelled) return;
+          console.log('✅ Torrent ready! Peers:', torrentRef.numPeers);
+
+          const videoFile = torrentRef.files
+            .filter((file: any) => file.name.match(/\.(mp4|webm|mkv|avi|mov)$/i))
+            .sort((a: any, b: any) => b.length - a.length)[0];
+
+          if (!videoFile) {
+            console.error('❌ No video file found in torrent');
+            setError('No video file found in torrent');
+            setLoading(false);
+            return;
+          }
+
+          console.log('🎥 Video file found:', videoFile.name, '(' + Math.round(videoFile.length / 1024 / 1024) + 'MB)');
+
+          videoFile.getBlobURL((err: Error | null, url: string | undefined) => {
+            if (cancelled) return;
+            if (err) {
+              console.error('❌ Failed to create blob URL:', err);
+              setError('Failed to create video URL');
+              setLoading(false);
+              return;
+            }
+
+            console.log('🎉 Blob URL created successfully');
+            setVideoURL(url || null);
+            setLoading(false);
+          });
+        });
+
+        // Stats update interval
+        statsInterval = setInterval(() => {
+          if (!torrentRef || cancelled) return;
+
+          setStats({
+            peers: torrentRef.numPeers || 0,
+            downloadSpeed: torrentRef.downloadSpeed || 0,
+            uploadSpeed: torrentRef.uploadSpeed || 0,
+            progress: torrentRef.progress || 0,
+            timeRemaining: torrentRef.timeRemaining || Infinity,
+          });
+        }, 1000);
+
+      } catch (err) {
+        if (cancelled) return;
+        console.error('❌ WebTorrent init error:', err);
+        setError(err instanceof Error ? err.message : 'Failed to start streaming');
+        setLoading(false);
+      }
+    };
+
+    initTorrent();
+
+    return () => {
+      cancelled = true;
+      if (statsInterval) {
+        clearInterval(statsInterval);
+      }
+    };
+  }, [magnetURI]);
+
+  return { videoURL, loading, error, stats };
 };
-
-export const destroyClient = () => {
-  if (client) {
-    try {
-      client.destroy();
-      client = null;
-      console.log('🧹 WebTorrent client destroyed');
-    } catch (err) {
-      console.error('Error destroying client:', err);
-    }
-  }
-};
-
-// Cleanup on page unload
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', destroyClient);
-}
