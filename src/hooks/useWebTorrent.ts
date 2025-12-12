@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { StreamStats } from '@/lib/types';
+import { getWebTorrentClient } from '@/lib/webtorrent'; // ← STATIC IMPORT
 
 export const useWebTorrent = (magnetURI: string | null) => {
   const [videoURL, setVideoURL] = useState<string | null>(null);
@@ -26,16 +27,8 @@ export const useWebTorrent = (magnetURI: string | null) => {
       try {
         console.log('🔧 Initializing WebTorrent client...');
         
-        // Import with error handling
-        const { getWebTorrentClient } = await import('@/lib/webtorrent').catch(err => {
-          console.error('Failed to import WebTorrent module:', err);
-          throw new Error('WebTorrent module failed to load');
-        });
-        
-        const client = await getWebTorrentClient().catch(err => {
-          console.error('Failed to get WebTorrent client:', err);
-          throw new Error('WebTorrent client initialization failed');
-        });
+        // Use static import - no dynamic import()
+        const client = await getWebTorrentClient();
         
         console.log('✅ WebTorrent client ready');
 
