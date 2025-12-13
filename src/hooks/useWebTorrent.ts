@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { StreamStats } from '@/lib/types';
-import { getWebTorrentClient } from '@/lib/webtorrent'; // ← STATIC IMPORT
 
 export const useWebTorrent = (magnetURI: string | null) => {
   const [videoURL, setVideoURL] = useState<string | null>(null);
@@ -22,13 +21,33 @@ export const useWebTorrent = (magnetURI: string | null) => {
     let cancelled = false;
     let torrentRef: any = null;
     let statsInterval: NodeJS.Timeout | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
 
     const initTorrent = async () => {
       try {
-        console.log('🔧 Initializing WebTorrent client...');
+        console.log('🔧 Attempting WebTorrent initialization...');
         
-        // Use static import - no dynamic import()
-        const client = await getWebTorrentClient();
+        // Set a 5-second timeout for WebTorrent initialization
+        timeoutId = setTimeout(() => {
+          if (!cancelled && !videoURL) {
+            console.log('⏱️ WebTorrent initialization timeout - using fallback');
+            setError('WebTorrent timeout - using fallback');
+            setLoading(false);
+          }
+        }, 5000);
+
+        // Try to load WebTorrent
+        const { getWebTorrentClient } = await import('@/lib/webtorrent').catch((err) => {
+          console.warn('⚠️ WebTorrent import failed:', err);
+          throw new Error('WebTorrent not available');
+        });
+        
+        const client = await getWebTorrentClient().catch((err) => {
+          console.warn('⚠️ WebTorrent client init failed:', err);
+          throw new Error('WebTorrent client unavailable');
+        });
+        
+        if (timeoutId) clearTimeout(timeoutId);
         
         console.log('✅ WebTorrent client ready');
 
@@ -40,27 +59,15 @@ export const useWebTorrent = (magnetURI: string | null) => {
           console.log('♻️ Reusing existing torrent');
           torrentRef = existingTorrent;
         } else {
-          console.log('➕ Adding new torrent:', magnetURI?.substring(0, 60) + '...');
+          console.log('➕ Adding new torrent');
           torrentRef = client.add(magnetURI);
         }
 
         torrentRef.on('error', (err: Error) => {
           if (cancelled) return;
           console.error('❌ Torrent error:', err);
-          setError(err.message);
+          setError('P2P unavailable - using fallback');
           setLoading(false);
-        });
-
-        torrentRef.on('infoHash', () => {
-          console.log('🔑 Got infoHash:', torrentRef.infoHash);
-        });
-
-        torrentRef.on('metadata', () => {
-          console.log('📋 Got metadata, files:', torrentRef.files?.length);
-        });
-
-        torrentRef.on('wire', () => {
-          console.log('👥 Peer connected! Total peers:', torrentRef.numPeers);
         });
 
         torrentRef.on('ready', () => {
@@ -72,33 +79,30 @@ export const useWebTorrent = (magnetURI: string | null) => {
             .sort((a: any, b: any) => b.length - a.length)[0];
 
           if (!videoFile) {
-            console.error('❌ No video file found in torrent');
-            setError('No video file found in torrent');
+            console.error('❌ No video file found');
+            setError('No video in torrent - using fallback');
             setLoading(false);
             return;
           }
 
-          console.log('🎥 Video file found:', videoFile.name, '(' + Math.round(videoFile.length / 1024 / 1024) + 'MB)');
-
           videoFile.getBlobURL((err: Error | null, url: string | undefined) => {
             if (cancelled) return;
             if (err) {
-              console.error('❌ Failed to create blob URL:', err);
-              setError('Failed to create video URL');
+              console.error('❌ Blob URL failed:', err);
+              setError('P2P failed - using fallback');
               setLoading(false);
               return;
             }
 
-            console.log('🎉 Blob URL created successfully');
+            console.log('🎉 P2P streaming ready!');
             setVideoURL(url || null);
             setLoading(false);
           });
         });
 
-        // Stats update interval
+        // Stats update
         statsInterval = setInterval(() => {
           if (!torrentRef || cancelled) return;
-
           setStats({
             peers: torrentRef.numPeers || 0,
             downloadSpeed: torrentRef.downloadSpeed || 0,
@@ -110,19 +114,20 @@ export const useWebTorrent = (magnetURI: string | null) => {
 
       } catch (err) {
         if (cancelled) return;
-        console.error('❌ WebTorrent init error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to start streaming');
+        console.warn('⚠️ WebTorrent unavailable:', err);
+        setError('P2P unavailable - using fallback');
         setLoading(false);
       }
     };
 
+    // Start initialization
     initTorrent();
 
+    // Cleanup
     return () => {
       cancelled = true;
-      if (statsInterval) {
-        clearInterval(statsInterval);
-      }
+      if (timeoutId) clearTimeout(timeoutId);
+      if (statsInterval) clearInterval(statsInterval);
     };
   }, [magnetURI]);
 

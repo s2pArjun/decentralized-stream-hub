@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -13,12 +12,10 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      // Node.js polyfills for WebTorrent
       events: "events",
       path: "path-browserify",
       stream: "stream-browserify",
       crypto: "crypto-browserify",
-      // Stub Node.js-only modules
       "bittorrent-dht": path.resolve(__dirname, "./src/lib/browser-stubs.ts"),
     },
   },
@@ -48,12 +45,9 @@ export default defineConfig(({ mode }) => ({
           webtorrent: ["webtorrent"],
         },
         format: "es",
-        inlineDynamicImports: false,
       },
     },
-    // Use esbuild for minification (default, faster than terser)
     minify: "esbuild",
-    // Generate sourcemaps only in dev
     sourcemap: mode === "development",
   },
 }));
